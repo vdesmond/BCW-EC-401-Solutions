@@ -1,0 +1,179 @@
+\documentclass[a4paper]{article}
+\usepackage[document]{ragged2e}
+%\usepackage{simplemargins}
+
+%\usepackage[square]{natbib}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage[export]{adjustbox}
+\usepackage[numbered,framed]{matlab-prettifier}
+\usepackage{minted}
+\usepackage{svg}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\usepackage{xcolor}
+\usepackage{lipsum}
+\setlength\headheight{26pt} %% just to make warning go away. Adjust the value after looking into the warning.
+\lfoot{{\small\textsf{\thepage}}}
+\rfoot{\small\textsf{\today}}
+\cfoot{}
+\rhead{\includegraphics[width=50pt]{bigcat}}
+\lhead{\includegraphics[width=30pt]{ssn}}
+\begin{document}
+% \pagenumbering{gobble}
+
+\Large
+ \begin{center}
+BigCat Wireless - EC401\\
+\textbf{Assignment 2}
+
+\hspace{10pt}
+
+% Author names and affiliations
+\large
+Vignesh Mohan\\
+\smallskip
+\small
+183002181\\
+\small
+Electronics and Communication Department\\
+\small
+Sri Sivasubramiya Nadar College of Engineering, 603110\\
+\end{center}
+
+\hspace{10pt}
+\normalsize
+
+\textit{1. What are the different Channel Characterization?}\\
+\bigskip
+\textbf{Large Scale Fading}\\
+Large-scale fading is the result of signal attenuation due to propagation over large distances and diffraction around large objects in the propagation path.\\
+\smallskip
+\textsf{Path Loss (free space): } In free-space, the attenuation of a signal due to distance follows the 1/d2 law, where d is the distance between the transmitter and the receiver. This is the case for line-of-sight (LOS) signals. In the case of non-line-of-sight (NLOS) signals, the attenuation is more likely to be anywhere from 1/d3 to 1/d6. This additional loss of power in propagation channels occurs when part of the reflected signal is lost.\\
+\smallskip
+\textsf{Shadowing: } Log normal shadowing is the result of the signal being blocked by large objects in the propagation path. These are typically distant objects in the environment such as mountains, hills, or large buildings. The length of time it takes for a moving receiver to pass through the "shadow" of these obstacles brings about the term "slow fading".\\
+\bigskip
+\textbf{Small Scale Fading}\\
+Small scale fading or simply fading is used to describe the rapid fluctuations of the amplitudes, phases, or multi path delays of radio signal over a short period of time or travel distance, so that large scale path loss effects may be ignored.\\
+\smallskip
+\textsf{Rayleigh Fading: } Rayleigh fading is used to simulate the rapid amplitude fluctuations where there is no direct ray component. Because there is no direct ray component, Rayleigh fading is often classified as the worst case fading type. Using a one ray model, this small scale distribution simulates the effects of rapid amplitude fluctuations when the receiver travels a distance of a few wavelengths.\\
+\smallskip
+\textsf{Rician Fading: } The Rician model adds a LOS component to the Rayleigh model. The angle of arrival of the LOS component can be adjusted. In effect, this adds a bias to the Rayleigh probability distribution function. Often used to simulate a rural environment.\\
+
+
+\newpage
+\textit{2. In Simulation 2 code (from slides), change the multipath delay and multipath gain and simulate for different multipath gain and multipath delay.}\\
+\bigskip
+\definecolor{bg}{rgb}{0.95,0.95,0.95}
+\begin{minted}[linenos=true,bgcolor=bg]{matlab}
+% rayleigh_multipath.m
+f_c = 1e3;
+time_1 = (linspace (0, 10, 1000));
+signal_in = sin (2 * pi * f_c * time_1);
+subplot(3, 2, 1);
+
+plot (time_1, signal_in, "b"); %blue=signal_in
+grid on;
+xlabel('Time'); 
+ylabel('Amplitude');
+title("Sine Wave Input");
+sgtitle("Rayleigh fading channel simulation");
+
+for ii = 1:5
+    % variable delay(phase shift)
+    tau = round(100 * rand(1, 1) + 1); 
+    %fixed gain
+    g1 = 1; 
+    %variable gain or attenuation
+    g2 = (0.6 * rand(1, 1) + rand(1, 1));
+    
+    signal_out = g1 * signal_in + g2 * ...
+        [zeros(1, tau) signal_in(1:end - tau)];
+    
+    subplot(3, 2, ii + 1);
+    plot (time_1, (signal_out), "r") %red=signal_out
+    xlabel("Time"); ylabel("Amplitude");
+    title(sprintf("tau = %f, g2 = %f",tau,g2));
+    
+end
+\end{minted}
+\begin{figure}[hbt!]
+    \centering
+  \includesvg[width=\linewidth]{fading}
+  \caption{Rayleigh fading channel simulation}
+\end{figure}
+
+\textit{3. In simulation 3 code (from slides), change the Gaussian Noise and simulate for different E\textsubscript b/N\textsubscript0.}\\
+\bigskip
+\begin{minted}[linenos=true,bgcolor=bg]{matlab}
+% rayleigh_bpsk_ber.m
+N = 10 ^ 6;
+min_dB = -5;
+max_dB = 40;
+
+% Transmitter
+ip = rand(1, N) > 0.5;
+s = 2 * ip - 1; % BPSK modulation 0 -> -1; 1 -> 0
+Eb_N0_dB = (min_dB:max_dB);
+nErr = zeros(1,max_dB-min_dB);
+
+for ii = 1:length(Eb_N0_dB)
+    % white gaussian noise, 0dB variance
+    n = sqrt(1/2) * (randn(1, N) + 1i * randn(1, N));
+    % Rayleigh channel
+    h = 1 / sqrt(2) * (randn(1, N) + 1i * randn(1, N));
+    y = h.*s + 10^(-Eb_N0_dB(ii)/20)*n;
+ 
+    % equalization
+    yHat = y ./ h;
+ 
+    % Receiver
+    ipHat = real(yHat) > 0;
+    nErr(ii) = size(find([ip-ipHat]), 2);
+end
+
+% simulated ber
+simBer = nErr / N;
+theoryBerAWGN = 0.5 * erfc(sqrt(10 .^ (Eb_N0_dB / 10)));
+% theoretical ber
+EbN0Lin = 10 .^ (Eb_N0_dB / 10);
+theoryBer = 0.5 .* (1 - sqrt(EbN0Lin ./ (EbN0Lin + 1)));
+
+% plot
+figure(1)
+semilogy(Eb_N0_dB,theoryBerAWGN,'rs--','LineWidth',2);
+hold on
+semilogy(Eb_N0_dB,theoryBer,'go-.','LineWidth',2);
+semilogy(Eb_N0_dB,simBer,'bx:','LineWidth',2);
+axis([min_dB max_dB 10^-5 0.5])
+grid on
+legend('AWGN - Theory','Rayleigh - Theory', ...
+    'Rayleigh - Simulation');
+xlabel('Eb/No (dB)');
+ylabel('Bit Error Rate');
+title('BER for BPSK modulation in Rayleigh channel');
+\end{minted}
+\begin{figure}[hbt!]
+  \centering
+  \includesvg[width=\linewidth]{ber}
+  \caption{BER for BPSK modulation in Rayleigh Channel}
+\end{figure}
+
+\newpage
+\textit{5. Calculate the doppler frequency, if a vehicle is directly travelling at 60 m/s speed towards base station. Assume carrier frequency F\textsubscript c = 1850 MHz.}\\
+\bigskip
+Given:
+\begin{gather*} 
+v = 60 m/s\\
+F_c = 1850 * 10^6 Hz\\
+c = 3 * 10^8 m/s\\
+F_d = \frac{v}{c} * F_c
+    = \frac{60}{3 * 10^8} * 1850 * 10^6\\
+\\
+F_d = 370 Hz
+\end{gather*}
+\end{document}

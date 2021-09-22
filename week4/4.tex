@@ -1,0 +1,144 @@
+\documentclass[a4paper]{article}
+\usepackage[document]{ragged2e}
+%\usepackage{simplemargins}
+
+%\usepackage[square]{natbib}
+\usepackage{mathtools}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage[export]{adjustbox}
+\usepackage[numbered,framed]{matlab-prettifier}
+\usepackage{minted}
+\usepackage{svg}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\usepackage{xcolor}
+\usepackage{lipsum}
+\setlength\headheight{26pt} %% just to make warning go away. Adjust the value after looking into the warning.
+\lfoot{{\small\textsf{\thepage}}}
+\rfoot{\small\textsf{\today}}
+\cfoot{}
+\rhead{\includegraphics[width=50pt]{bigcat}}
+\lhead{\includegraphics[width=30pt]{ssn}}
+\begin{document}
+% \pagenumbering{gobble}
+
+\Large
+ \begin{center}
+BigCat Wireless - EC401\\
+\textbf{Assignment 4}
+
+\hspace{10pt}
+
+% Author names and affiliations
+\large
+Vignesh Mohan\\
+\smallskip
+\small
+183002181\\
+\small
+Electronics and Communication Department\\
+\small
+Sri Sivasubramiya Nadar College of Engineering, 603110\\
+\end{center}
+
+\hspace{10pt}
+\normalsize
+
+\textit{1. Calculate bandwidth required to live stream a cricket match with Full HD resolution (1920x1080 pixels) in raw format at 30 fps (frames/sec) using OFDM modulation and 16-QAM symbol mapping. Assume we are going to use 1024-point IFFT (Hint: in a colour video each pixel is represented with 3 Bytes)}
+\begin{align*}
+\intertext{1920 x 1080 pixels with each pixel represented by 3 bytes = 24 bits: }
+1\;s & = 30 \;frames\\
+&   = 30 * 1920 * 1080 * 24\; bits\\
+&   = 1492992000\; bits\\
+&  = 373248000 \;symbols \;(16-QAM \;symbol = 4 \; bits)\\
+\intertext{Since we use 1024-point IFFT, number of subcarriers = 1024}
+1\;s & = \frac{373248000}{1024}\\
+& = 364500 \;OFDM \;symbols\\
+\shortintertext{For 1 symbol, time period is 2.74 $\mu s$}
+\intertext{Since we use 1024-point IFFT, number of subcarriers = 1024}
+BW & = 364.5 \;KHz * 1024\\
+Required\;Bandwidth & = 373.24 \; MHz\\
+\end{align*}
+
+\bigskip
+\textit{2. Calculate the duration of cyclic prefix required to overcome multipath time spreading in a OFDM communication system with input bit rate of 5 Mbps and uses 512 pt IFFT. Based on analysis of wireless channel its has been found that the worst multipath component is 6.14 km.}
+\begin{align*}
+\shortintertext{Input bit rate = 5Mbps}
+\shortintertext{Number of subcarriers = 512}
+\shortintertext{Worst case distance = 6.14 km}
+\shortintertext{Multipath time spreading = $\frac{6.14*10^3}{3*10^8} = 20.4 \mu s$}
+\shortintertext{Thus guard interval must be greater than $20.4 \mu s$}
+\intertext{Assumimg 16 QAM symbols are used, we get}
+1 \;s & = 5 * 10^6 bits
+& = 1.25 * 10^6 QAM symbols
+& = \frac{1.25 * 10^6}{512} OFDM symbols
+& = 2.44 * 10^3 OFDM symbols
+\shortintertext{For 1 symbol, time period is 0.41 $\mu s$}
+\shortintertext{For cyclic prefix, we take  $\frac{1}{10}$ of symbol time, which is 0.041 ms}
+\intertext{Guard interval (0.041 ms) is greater than multipath time spread (0.0204 ms)}
+\end{align*}
+
+\bigskip
+\textit{3. Create an OFDM system: Use MATLAB or Python code only to create (no Simulink) Calculate the following:\\
+    • Bit Error Rate\\
+Plot the following figures:\\
+    • Transmitted spectrum\\
+    • Received Constellation\\
+}
+\bigskip
+\definecolor{bg}{rgb}{0.95,0.95,0.95}
+\begin{minted}[linenos=true,bgcolor=bg]{matlab}
+% ofdm_simulation.m
+M = 16; %Modulation order
+k = log2(M); %Number of bits per symbol
+n = 51200; %Number of data samples
+
+data = randi([0 1], n, 1); %n samples
+
+dataInput = reshape(data, length(data)/k, k);
+dataSym = bi2de(dataInput);
+dataMod = qammod(dataSym,M);
+
+dataParallel = reshape(dataMod, 512, []); %Serial to parallel
+dataOFDMmod = ifft(dataParallel, 512, 1);  %IFFT
+txData = reshape(dataOFDMmod, [], 1);
+dataChannel = awgn(txData, 18, 'measured'); %SNR = 18 dB
+rxData = reshape(dataChannel, 512, []);
+dataOFDMdemod = fft(rxData, 512, 1); %FFT
+dataSerial = reshape(dataOFDMdemod, 1, []); %Parallel to Serial
+scatterplot(dataSerial);
+dataDemod = qamdemod(dataSerial, M)';
+
+%calculate BER
+recdataSym = de2bi(dataDemod);
+recdata = reshape(recdataSym,[], 1);
+[numerr, ber] = biterr(data, recdata);
+fprintf("Bit Error Rate = %.6f\n", ber)
+
+%Spectrum of Tx Signal
+fs = 20000000;
+[Pxx,W] = pwelch(txData',[],[],4096,fs);    
+figure;
+plot([-2048:2047]*fs/4096,10*log10(fftshift(Pxx)),'b'); 
+grid;hold on;
+xlabel('Frequency (MHz)')
+ylabel('Power Spectral Density')
+hold off;
+\end{minted}
+Output:\\
+Bit Error Rate = 0.000117
+\begin{figure}[hbt!]
+    \centering
+  \includesvg[width=\linewidth]{ofdm_qammod}
+  \caption{Constellation Diagram of received signal}
+\end{figure}
+\begin{figure}[hbt!]
+    \centering
+  \includesvg[width=\linewidth]{ofdm_spectrum}
+  \caption{Spectrum (PSD) of transmitted signal (Note spectrum shown is without any subcarrier modulation)}
+\end{figure}
+\end{document}
